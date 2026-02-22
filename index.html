@@ -2,93 +2,85 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>STORYBOARD ENGINE v25.0 | G-TUNNEL</title>
+    <title>STORYBOARD PRO v26.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background: #000; color: #fff; font-family: monospace; }
-        .ui-card { background: #0a0a0a; border: 1px solid #222; border-radius: 12px; }
-        .loader { width: 30px; height: 30px; border: 3px solid #333; border-top-color: #f97316; border-radius: 50%; animation: spin 1s linear infinite; }
+        .ui-card { background: #0a0a0a; border: 1px solid #222; border-radius: 15px; }
+        .loader { width: 40px; height: 40px; border: 4px solid #333; border-top-color: #f97316; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="h-screen flex flex-col p-4 gap-4 overflow-hidden">
 
-    <header class="h-16 flex items-center justify-between px-6 ui-card shadow-2xl">
-        <h1 class="text-orange-600 font-bold text-[10px] uppercase tracking-[0.3em]">Engine v25.0 (Proxy Mode)</h1>
-        <button onclick="run()" class="bg-orange-600 px-10 py-2 rounded-full text-[10px] font-black uppercase hover:bg-orange-500 transition-all">Запуск</button>
+    <header class="h-16 flex items-center justify-between px-6 ui-card">
+        <h1 class="text-orange-600 font-bold text-[10px] uppercase tracking-widest">Engine v26.0 | Global Edition</h1>
+        <div class="flex gap-4 items-center">
+            <input type="file" id="f" class="hidden">
+            <button onclick="document.getElementById('f').click()" class="text-[9px] text-zinc-500 uppercase hover:text-white transition">📂 Загрузить файл</button>
+            <button onclick="run()" class="bg-orange-600 px-10 py-2 rounded-full text-[10px] font-black uppercase hover:scale-105 active:scale-95 transition-all">Запуск</button>
+        </div>
     </header>
 
     <main class="flex flex-1 gap-4 overflow-hidden">
-        <textarea id="input" class="w-1/2 p-8 bg-black border border-zinc-900 rounded-xl outline-none text-zinc-500 focus:text-white transition-all resize-none shadow-inner" placeholder="Вставьте ваш сценарий вручную..."></textarea>
-        <div id="deck" class="w-1/2 overflow-y-auto space-y-6 pr-2"></div>
+        <textarea id="in" class="w-1/3 p-6 bg-black border border-zinc-900 rounded-xl outline-none text-zinc-400 focus:text-white transition-all resize-none shadow-inner" placeholder="Текст сценария..."></textarea>
+        <div id="deck" class="w-2/3 overflow-y-auto space-y-4 pr-2"></div>
     </main>
 
     <script>
-        const GROQ_API = "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";
+        const KEY = "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";
+
+        document.getElementById('f').onchange = (e) => {
+            const r = new FileReader();
+            r.onload = (ev) => { document.getElementById('in').value = ev.target.result; };
+            r.readAsText(e.target.files[0]);
+        };
 
         async function run() {
-            const script = document.getElementById('input').value;
+            const txt = document.getElementById('in').value;
             const deck = document.getElementById('deck');
-            if(!script) return alert("Поле пусто!");
+            if(!txt) return;
             deck.innerHTML = "";
 
             const id = Date.now();
             const card = document.createElement('div');
-            card.className = "ui-card p-6 border-l-2 border-orange-600 shadow-xl";
+            card.className = "ui-card p-6 border-l-4 border-orange-600 animate-fade-in";
             card.innerHTML = `
-                <div class="flex justify-between text-[9px] text-zinc-600 mb-4 uppercase font-bold tracking-widest">
-                    <span>SHOT #1</span><span id="st-${id}">CONNECTING...</span>
-                </div>
-                <div id="bx-${id}" class="aspect-video bg-zinc-950 rounded-xl flex items-center justify-center overflow-hidden border border-white/5">
+                <div class="flex justify-between text-[9px] text-zinc-600 mb-4 uppercase font-bold"><span>Shot #1</span><span id="st-${id}">Rendering...</span></div>
+                <div id="bx-${id}" class="aspect-video bg-zinc-950 rounded-lg flex items-center justify-center border border-white/5 overflow-hidden">
                     <div class="loader"></div>
                 </div>
-                <p id="pr-${id}" class="mt-4 text-[10px] text-zinc-500 italic"></p>
+                <p id="pr-${id}" class="mt-4 text-[11px] text-zinc-500 leading-relaxed"></p>
             `;
             deck.appendChild(card);
 
             try {
-                // 1. Получаем промпт через Groq
                 const g = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                     method: "POST",
-                    headers: { "Authorization": "Bearer " + GROQ_API, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        model: "llama-3.3-70b-versatile",
-                        messages: [{role: "system", content: "Cinematic storyboard description, English, high quality."}, {role: "user", content: script}]
-                    })
+                    headers: { "Authorization": "Bearer " + KEY, "Content-Type": "application/json" },
+                    body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{role: "system", content: "Short cinematic storyboard prompt, English."}, {role: "user", content: txt}] })
                 });
                 const gd = await g.json();
                 const prompt = gd.choices[0].message.content.trim();
                 document.getElementById('pr-'+id).innerText = prompt;
-                document.getElementById('st-'+id).innerText = "TUNNELING...";
 
-                // 2. ГЕНЕРАЦИЯ ЧЕРЕЗ GOOGLE PROXY (Обход блокировок провайдера)
-                const seed = Math.floor(Math.random() * 99999);
-                const rawUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=576&seed=${seed}&nologo=true&model=flux`;
+                // ПРЯМОЙ ВЫЗОВ БЕЗ ПРОКСИ - ОБЫЧНО ПРОБИВАЕТ БЛОК
+                const seed = Math.floor(Math.random() * 10000);
+                const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1280&height=720&seed=${seed}&nologo=true`;
                 
-                // Тоннель через Google Images Server
-                const proxiedUrl = `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(rawUrl)}`;
-
                 const img = new Image();
-                img.src = proxiedUrl;
-                img.className = "w-full h-full object-cover shadow-2xl transition-opacity duration-1000";
-                
+                img.src = url;
+                img.className = "w-full h-full object-cover";
                 img.onload = () => {
                     document.getElementById('bx-'+id).innerHTML = "";
                     document.getElementById('bx-'+id).appendChild(img);
-                    document.getElementById('st-'+id).innerText = "RENDERED";
-                    document.getElementById('st-'+id).className = "text-green-800 font-bold";
+                    document.getElementById('st-'+id).innerText = "DONE";
                 };
-
                 img.onerror = () => {
-                    // Если даже Google не помог, пробуем запасной шлюз
-                    document.getElementById('st-'+id).innerText = "RETRYING...";
-                    document.getElementById('bx-'+id).innerHTML = `<img src="https://api.dicebear.com/7.x/identicon/svg?seed=${seed}" class="w-20 opacity-20">`;
+                    document.getElementById('st-'+id).innerText = "ERROR";
+                    document.getElementById('bx-'+id).innerHTML = "<p class='text-[10px] text-red-900'>Провайдер блокирует ИИ-изображения. Включите VPN в браузере!</p>";
                 };
-
-            } catch (e) {
-                document.getElementById('st-'+id).innerText = "NETWORK ERROR";
-                document.getElementById('bx-'+id).innerHTML = "<span class='text-[8px] text-red-900 p-4 text-center uppercase'>Критическая блокировка. Включите VPN в браузере!</span>";
-            }
+            } catch (e) { document.getElementById('st-'+id).innerText = "NET ERROR"; }
         }
     </script>
 </body>
